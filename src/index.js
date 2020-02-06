@@ -138,7 +138,6 @@ const getDimensions = (imageBuffer, percentageOfImage, dimensions, source) => {
         input = source;
 
     const originalDimensions = sizeOf(input ? input : imageBuffer);
-    console.log(originalDimensions)
     const width = parseInt((originalDimensions.width * (percentageOfImage / 100)).toFixed(0));
     const height = parseInt((originalDimensions.height * (percentageOfImage / 100)).toFixed(0));
 
