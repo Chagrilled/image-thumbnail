@@ -6,7 +6,7 @@ Generate an image thumbnail.
 ## Purpose?
 This module will generate an image thumbnail.
 
-By default the thumbnail's file format will be the same than the source file. You can use the __jpegOptions__ option to force output to jpeg.
+By default the thumbnail's file format will be the same than the source file. You can use the __pngOptions__ option to force output to png.
 
 ## Usage
 ### imageThumbnail(source, options)
@@ -106,7 +106,7 @@ try {
   - __width__ [number] - image thumbnail width.
   - __height__ [number] - image thumbnail height.
   - __responseType__ ['buffer' || 'base64'] - response output type. Default = 'buffer'
-  - __jpegOptions__ [0-100] - Example: { force:true, quality:100 }
+  - __pngOptions__ [0-100] - Example: { force:true, quality:100 }. Default { false, 100 }
 
 ### Examples
 ```js
@@ -138,7 +138,7 @@ try {
 ```js
 const imageThumbnail = require('image-thumbnail');
 
-let options = { width: 100, height: 100, responseType: 'base64', jpegOptions: { force:true, quality:90 } }
+let options = { width: 100, height: 100, responseType: 'base64', pngOptions: { force:true, quality:90 } }
 
 try {
     const thumbnail = await imageThumbnail('resources/images/dog.jpg', options);

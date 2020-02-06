@@ -23,10 +23,10 @@ const sharpBlend = async (input, blend, blendMode) => {
     });
 }
 
-const fromBase64 = async (source, percentage, width, height, responseType, jpegOptions) => {
+const fromBase64 = async (source, percentage, width, height, responseType, pngOptions) => {
     const imageBuffer = Buffer.from(source, 'base64');
-    const dimensions = getDimensions(imageBuffer, percentage, { width, height });
-    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, jpegOptions);
+    const dimensions = getDimensions(imageBuffer, percentage, { width, height }, source);
+    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, pngOptions);
 
     if (responseType === 'base64') {
         return thumbnailBuffer.toString('base64');
@@ -35,12 +35,12 @@ const fromBase64 = async (source, percentage, width, height, responseType, jpegO
     return thumbnailBuffer;
 };
 
-const fromUri = async (source, percentage, width, height, responseType, jpegOptions) => {
+const fromUri = async (source, percentage, width, height, responseType, pngOptions) => {
     const response = await axios.get(source.uri, { responseType: 'arraybuffer' });
     const imageBuffer = Buffer.from(response.data, 'binary');
 
-    const dimensions = getDimensions(imageBuffer, percentage, { width, height });
-    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, jpegOptions);
+    const dimensions = getDimensions(imageBuffer, percentage, { width, height }, source);
+    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, pngOptions);
 
 
     if (responseType === 'base64') {
@@ -50,11 +50,11 @@ const fromUri = async (source, percentage, width, height, responseType, jpegOpti
     return thumbnailBuffer;
 };
 
-const fromPath = async (source, percentage, width, height, responseType, jpegOptions) => {
+const fromPath = async (source, percentage, width, height, responseType, pngOptions) => {
     const imageBuffer = fs.readFileSync(source);
 
-    const dimensions = getDimensions(imageBuffer, percentage, { width, height });
-    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, jpegOptions);
+    const dimensions = getDimensions(imageBuffer, percentage, { width, height }, source);
+    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, pngOptions);
 
     if (responseType === 'base64') {
         return thumbnailBuffer.toString('base64');
@@ -63,10 +63,10 @@ const fromPath = async (source, percentage, width, height, responseType, jpegOpt
     return thumbnailBuffer;
 };
 
-const fromReadStream = async (source, percentage, width, height, responseType, jpegOptions) => {
+const fromReadStream = async (source, percentage, width, height, responseType, pngOptions) => {
     const imageBuffer = await util.streamToBuffer(source);
-    const dimensions = getDimensions(imageBuffer, percentage, { width, height });
-    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, jpegOptions);
+    const dimensions = getDimensions(imageBuffer, percentage, { width, height }, source);
+    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, pngOptions);
 
     if (responseType === 'base64') {
         return thumbnailBuffer.toString('base64');
@@ -75,11 +75,11 @@ const fromReadStream = async (source, percentage, width, height, responseType, j
     return thumbnailBuffer;
 };
 
-const fromBuffer = async (source, percentage, width, height, responseType, jpegOptions) => {
+const fromBuffer = async (source, percentage, width, height, responseType, pngOptions) => {
     const imageBuffer = source;
 
-    const dimensions = getDimensions(imageBuffer, percentage, { width, height });
-    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, jpegOptions);
+    const dimensions = getDimensions(imageBuffer, percentage, { width, height }, source);
+    const thumbnailBuffer = await sharpResize(imageBuffer, dimensions, pngOptions);
 
     if (responseType === 'base64') {
         return thumbnailBuffer.toString('base64');
@@ -94,25 +94,25 @@ module.exports = {
             const width = options && options.width ? options.width : undefined;
             const height = options && options.height ? options.height : undefined;
             const responseType = options && options.responseType ? options.responseType : RESPONSE_TYPE;
-            const jpegOptions = options && options.jpegOptions ? options.jpegOptions : undefined;
+            const pngOptions = options && options.pngOptions ? options.pngOptions : undefined;
 
             try {
                 switch (typeof source) {
                     case 'object':
                         let response;
                         if (source instanceof fs.ReadStream) {
-                            response = await fromReadStream(source, percentage, width, height, responseType, jpegOptions);
+                            response = await fromReadStream(source, percentage, width, height, responseType, pngOptions);
                         } else if (source instanceof Buffer) {
-                            response = await fromBuffer(source, percentage, width, height, responseType, jpegOptions);
+                            response = await fromBuffer(source, percentage, width, height, responseType, pngOptions);
                         } else {
-                            response = await fromUri(source, percentage, width, height, responseType, jpegOptions);
+                            response = await fromUri(source, percentage, width, height, responseType, pngOptions);
                         }
                         return response;
                     case 'string':
                         if (validator.isBase64(source)) {
-                            return await fromBase64(source, percentage, width, height, responseType, jpegOptions);
+                            return await fromBase64(source, percentage, width, height, responseType, pngOptions);
                         } else {
-                            return await fromPath(source, percentage, width, height, responseType, jpegOptions);
+                            return await fromPath(source, percentage, width, height, responseType, pngOptions);
                         }
                     default:
                         throw new Error('unsupported source type');
@@ -124,25 +124,33 @@ module.exports = {
     sharpBlend: async (input, blend, blendMode) => await sharpBlend(input, blend, blendMode)
 };
 
-const getDimensions = (imageBuffer, percentageOfImage, dimensions) => {
+const getDimensions = (imageBuffer, percentageOfImage, dimensions, source) => {
     if (typeof dimensions.width != 'undefined' && typeof dimensions.height != 'undefined') {
         return { width: dimensions.width, height: dimensions.height };
     }
 
     if (typeof dimensions.width != 'undefined' || typeof dimensions.height != 'undefined') {
-        return mergeDimensions(imageBuffer, dimensions)
+        return mergeDimensions(imageBuffer, dimensions, source)
     }
 
-    const originalDimensions = sizeOf(imageBuffer);
+    let input;
+    if (source && source.includes(".tif"))
+        input = source;
 
+    const originalDimensions = sizeOf(input ? input : imageBuffer);
+    console.log(originalDimensions)
     const width = parseInt((originalDimensions.width * (percentageOfImage / 100)).toFixed(0));
     const height = parseInt((originalDimensions.height * (percentageOfImage / 100)).toFixed(0));
 
     return { width, height };
 }
 
-const mergeDimensions = (imageBuffer, dimensions) => {
-    const originalDimensions = sizeOf(imageBuffer);
+const mergeDimensions = (imageBuffer, dimensions, source) => {
+    let input;
+    if (source && source.includes(".tif"))
+        input = source;
+
+    const originalDimensions = sizeOf(input ? input : imageBuffer);
     let newDimensions = dimensions
 
     if (typeof dimensions.width == 'undefined')
@@ -153,11 +161,11 @@ const mergeDimensions = (imageBuffer, dimensions) => {
     return newDimensions;
 }
 
-const sharpResize = (imageBuffer, dimensions, jpegOptions) => {
+const sharpResize = (imageBuffer, dimensions, pngOptions) => {
     return new Promise((resolve, reject) => {
         sharp(imageBuffer)
             .resize({ width: dimensions.width, heigth: dimensions.height, withoutEnlargement: true })
-            .jpeg(jpegOptions ? jpegOptions : { force: false })
+            .png(pngOptions ? pngOptions : { force: false })
             .toBuffer((err, data, info) => {
                 if (err) {
                     reject(err);
